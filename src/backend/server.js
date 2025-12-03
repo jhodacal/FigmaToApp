@@ -9,7 +9,7 @@ const app = express();
 
 // Configurar CORS correctamente
 app.use(cors({
-  origin: ['http://localhost:8081', 'http://192.168.1.5:8081', 'exp://192.168.1.5:8081'], // Puertos comunes de Expo
+  origin: ['http://localhost:8081', 'http://10.168.178.112:8081', 'exp://10.168.178.112:8081'], // Puertos comunes de Expo
   credentials: true
 }));
 
@@ -245,5 +245,5 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
   console.log(`📍 URL local: http://localhost:${PORT}`);
-  console.log(`📍 URL red: http://192.168.1.5:${PORT}`);
+  console.log(`📍 URL red: http://10.168.178.112:${PORT}`);
 });

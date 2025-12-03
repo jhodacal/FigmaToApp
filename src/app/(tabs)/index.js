@@ -3,18 +3,18 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Animated,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { Logo, PeruFlag, WaveDivider } from '../../../components/CommonComponents';
 import { useDeviceType } from '../../../hooks/useDeviceType';
@@ -148,7 +148,7 @@ const LoginScreen = () => {
 
     try {
       // Reemplaza con tu URL de API
-      const response = await fetch('http://192.168.1.5:3000/api/auth/login', {
+      const response = await fetch('http://10.168.178.112:3000/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -2,18 +2,18 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  Dimensions,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Animated,
+    Dimensions,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import Svg, { Line, Path, Text as SvgText } from 'react-native-svg';
 
@@ -212,7 +212,7 @@ const RegisterScreen = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('http://192.168.1.5:3000/api/auth/register', {
+      const response = await fetch('http://10.168.178.112:3000/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
