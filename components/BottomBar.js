@@ -1,9 +1,8 @@
 // components/BottomBar.js
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 // Colores consistentes con la paleta de detalles
 const COLORS = {
@@ -14,13 +13,13 @@ const COLORS = {
   BAR_BG: '#121212',
 };
 
-const BottomBar = ({ activeRoute = 'home' }) => {
+const BottomBar = ({ activeRoute = 'home', onSearchPress }) => {
   const router = useRouter();
 
   const navItems = [
-    { name: 'home', icon: 'home-outline', route: '/dashboard' },
-    { name: 'search', icon: 'search-outline', route: '/search' },
-    { name: 'favorites', icon: 'star-outline', route: '/favorites' },
+    { name: 'home', icon: 'home-outline', route: '/(tabs)/dashboard' },
+    { name: 'search', icon: 'search-outline', route: '/(tabs)/dashboard' },
+    { name: 'favorites', icon: 'star-outline', route: '/(tabs)/MyCourses' },
   ];
 
   return (
@@ -33,12 +32,18 @@ const BottomBar = ({ activeRoute = 'home' }) => {
       {navItems.map((item) => {
         const isActive = activeRoute === item.name;
         const color = isActive ? COLORS.ACTIVE_COLOR : COLORS.INACTIVE_COLOR;
-        
+
         return (
           <TouchableOpacity
             key={item.name}
             style={styles.navItem}
-            onPress={() => router.push(item.route)}
+            onPress={() => {
+              if (item.name === 'search' && onSearchPress) {
+                onSearchPress();
+              } else {
+                router.push(item.route);
+              }
+            }}
           >
             <Ionicons name={item.icon} size={26} color={color} />
             {isActive && <View style={styles.activeIndicator} />}

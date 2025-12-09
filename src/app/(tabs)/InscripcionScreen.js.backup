@@ -1,23 +1,5 @@
 // screens/InscripcionScreen.js
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
-} from 'react-native';
-import useSafeBack from '../../../components/useSafeBack';
-import { useDeviceType } from '../../../hooks/useDeviceType';
-import { API_URL } from '../../config/api';
-
 // --- Paleta de Colores ---
 const COLORS = {
   GRADIENT_START: '#0D1B4C',
@@ -31,28 +13,24 @@ const COLORS = {
   LINK_TEXT: '#007AFF',
 };
 
-const HeaderInscripcion = ({ router }) => {
-  const safeBack = useSafeBack();
-  return (
-    <View style={styles.headerInscripcion}>
-      <TouchableOpacity onPress={safeBack} style={styles.headerButton}>
-        <Ionicons name="arrow-back-outline" size={28} color={COLORS.WHITE} />
-      </TouchableOpacity>
-      {/* Título y subtítulo */}
-      <View>
-        <Text style={styles.headerTitle}>Inscripción</Text>
-        <Text style={styles.headerSubtitle}>financiamiento</Text>
-      </View>
+const HeaderInscripcion = ({ router }) => (
+  <View style={styles.headerInscripcion}>
+    <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
+      <Ionicons name="arrow-back-outline" size={28} color={COLORS.WHITE} />
+    </TouchableOpacity>
+    {/* Título y subtítulo */}
+    <View>
+      <Text style={styles.headerTitle}>Inscripción</Text>
+      <Text style={styles.headerSubtitle}>financiamiento</Text>
     </View>
-  );
-};
+  </View>
+);
 
 const BulletPointAcuerdo = ({ text }) => (
   <View style={styles.acuerdoBullet}>
     <Text style={styles.bulletTextAcuerdo}>• {text}</Text>
   </View>
 );
-
 
 const InscripcionScreen = () => {
   const router = useRouter();
@@ -61,7 +39,7 @@ const InscripcionScreen = () => {
   const { isDesktop, isTablet } = useDeviceType();
   const params = useLocalSearchParams();
   const courseName = params.courseName || '[nombre curso]';
-  const courseId = params.courseId;
+  const courseId = params.id; // Necesitamos el ID del curso
 
   const handleInscribirse = async () => {
     if (!isChecked) {
@@ -70,13 +48,23 @@ const InscripcionScreen = () => {
     }
 
     if (!courseId) {
-      Alert.alert('Error', 'ID del curso no encontrado');
+      Alert.alert('Error', 'ID de curso no encontrado');
       return;
     }
 
     setLoading(true);
+
     try {
       const token = await AsyncStorage.getItem('token');
+
+      if (!token) {
+        Alert.alert('Error', 'Debes iniciar sesión para inscribirte');
+        router.push('/(tabs)/index');
+        return;
+      }
+
+      console.log(`📝 Inscribiendo en curso ${courseId}: ${courseName}`);
+
       const response = await fetch(`${API_URL}/cursos/${courseId}/inscribir`, {
         method: 'POST',
         headers: {
@@ -85,34 +73,34 @@ const InscripcionScreen = () => {
         }
       });
 
+      const data = await response.json();
+
       if (response.ok) {
-        if (Platform.OS === 'web') {
-          // Web handling: window.alert blocks execution, then navigate
-          window.alert(`¡Felicidades! 🎉\nTe has inscrito exitosamente en el curso de ${courseName}.`);
-          // Navigate immediately after alert is closed
-          router.dismissAll();
-          router.replace('/(tabs)/MyCourses');
-        } else {
-          Alert.alert(
-            '¡Felicidades! 🎉',
-            `Te has inscrito exitosamente en el curso de ${courseName}.`,
-            [
-              {
-                text: 'Ir al Curso',
-                onPress: () => {
-                  router.dismissAll();
-                  router.replace('/(tabs)/MyCourses');
-                }
-              }
-            ]
-          );
-        }
+        console.log('✅ Inscripción exitosa!');
+        Alert.alert(
+          '¡Éxito!',
+          `Te has inscrito correctamente en ${courseName}. ¡Comienza a aprender!`,
+          [
+            {
+              text: 'Ver Mis Cursos',
+              onPress: () => router.push('/(tabs)/MyCourses')
+            },
+            {
+              text: 'OK',
+              onPress: () => router.back()
+            }
+          ]
+        );
       } else {
-        const data = await response.json();
-        Alert.alert('Error', data.message || 'No se pudo completar la inscripción');
+        console.log('❌ Error en inscripción:', data);
+        if (data.enrolled) {
+          Alert.alert('Información', data.message || 'Ya estás inscrito en este curso');
+        } else {
+          Alert.alert('Error', data.message || 'No se pudo completar la inscripción');
+        }
       }
     } catch (error) {
-      console.error('Error de inscripción:', error);
+      console.error('💥 Error en inscripción:', error);
       Alert.alert('Error', 'No se pudo conectar con el servidor');
     } finally {
       setLoading(false);
@@ -136,6 +124,7 @@ const InscripcionScreen = () => {
       colors={[COLORS.GRADIENT_START, COLORS.GRADIENT_END]}
       style={styles.container}
     >
+      <StatusBar hidden={true} />
       <HeaderInscripcion router={router} />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -173,7 +162,7 @@ const InscripcionScreen = () => {
 
           {/* Botón de Acción */}
           <TouchableOpacity
-            style={styles.inscribirseButton}
+            style={[styles.inscribirseButton, loading && styles.buttonDisabled]}
             onPress={handleInscribirse}
             disabled={!isChecked || loading}
           >
@@ -184,10 +173,7 @@ const InscripcionScreen = () => {
               end={{ x: 1, y: 0 }}
             >
               {loading ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <ActivityIndicator size="small" color={COLORS.WHITE} style={{ marginRight: 10 }} />
-                  <Text style={styles.inscribirseText}>Firmando acuerdo...</Text>
-                </View>
+                <ActivityIndicator color={COLORS.WHITE} />
               ) : (
                 <Text style={styles.inscribirseText}>Firmar Acuerdo y Empezar a aprender</Text>
               )}

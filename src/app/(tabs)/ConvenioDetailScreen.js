@@ -1,17 +1,21 @@
 // screens/ConvenioDetailScreen.js
-import React from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import {
-  View,
+  ActivityIndicator,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Platform,
+  View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import useSafeBack from '../../../components/useSafeBack';
 import { useDeviceType } from '../../../hooks/useDeviceType';
+import { API_URL } from '../../config/api';
 
 // --- Paleta de Colores ---
 const COLORS = {
@@ -20,92 +24,111 @@ const COLORS = {
   WHITE: '#FFFFFF',
   ACCENT_BLUE: '#4990E2',
   ACCENT_GREEN: '#4ade80',
-  SECTION_BG: 'rgba(30, 58, 138, 0.4)', // Fondo de las cajas de texto
+  SECTION_BG: 'rgba(30, 58, 138, 0.4)',
 };
 
-// Mock Data simplificado para un convenio (NTT DATA)
-const mockConvenio = {
-    id: 'c1',
-    name: 'NTT DATA',
-    logo: 'NTT DATA', // Placeholder de texto
-    description: 'Somos una consultora multinacional de negocios y tecnología que impulsa la transformación y reinvención de las organizaciones a través de la innovación y soluciones tecnológicas avanzadas.',
-    requirements: [
-        'Consultoría: Consultores de Negocios, Gerentes de Proyectos.',
-        'Tecnología: Desarrolladores de Software, Ingenieros en la Nube, Especialistas en Ciberseguridad.',
-        'Datos e IA: Analistas de Datos, Ingenieros en Inteligencia Artificial.',
-        'Programación: Desarrolladores Full-Stack, Especialistas en DevOps.',
-        'Ventas: Gerentes de Cuentas, Consultores de Ventas.',
-        'Diseño: Diseñadores UX/UI.',
-        'Operaciones: Analistas Financieros, Especialistas en Recursos Humanos.',
-        'Programas Especiales: Recién graduados.',
-    ],
+const HeaderConvenio = ({ title }) => {
+  const safeBack = useSafeBack();
+  return (
+    <View style={styles.headerConvenio}>
+      <TouchableOpacity onPress={safeBack} style={styles.headerButton}>
+        <Ionicons name="arrow-back-outline" size={28} color={COLORS.WHITE} />
+      </TouchableOpacity>
+      <Text style={styles.headerTitle}>{title}</Text>
+      <View style={{ width: 44 }} />
+    </View>
+  );
 };
-
-
-const HeaderConvenio = ({ router, title }) => (
-  <View style={styles.headerConvenio}>
-    <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
-      <Ionicons name="arrow-back-outline" size={28} color={COLORS.WHITE} />
-    </TouchableOpacity>
-    <Text style={styles.headerTitle}>{title}</Text>
-    <View style={{ width: 44 }} /> {/* Placeholder para centrar */}
-  </View>
-);
 
 const ConvenioDetailScreen = () => {
   const router = useRouter();
+  const { id } = useLocalSearchParams();
   const { isDesktop } = useDeviceType();
-  // En un caso real, buscarías el convenio por ID usando useLocalSearchParams
+  const [convenio, setConvenio] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Usar mock data directamente por ahora
-  const convenio = mockConvenio; 
   const contentWidthStyle = isDesktop ? styles.desktopContentArea : styles.mobileContentArea;
 
-  // Componente Logo placeholder NTT DATA
-  const NttDataLogo = () => (
-    <View style={styles.logoContainer}>
-        <Text style={styles.logoText}>{convenio.name}</Text>
-    </View>
-  );
+  useEffect(() => {
+    if (id) {
+      fetchConvenio();
+    }
+  }, [id]);
+
+  const fetchConvenio = async () => {
+    try {
+      const response = await fetch(`${API_URL}/convenios/${id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setConvenio(data.convenio);
+      } else {
+        console.error('Convenio not found');
+      }
+    } catch (error) {
+      console.error('Error fetching convenio:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <LinearGradient colors={[COLORS.GRADIENT_START, COLORS.GRADIENT_END]} style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.WHITE} />
+      </LinearGradient>
+    );
+  }
+
+  if (!convenio) {
+    return (
+      <LinearGradient colors={[COLORS.GRADIENT_START, COLORS.GRADIENT_END]} style={styles.container}>
+        <HeaderConvenio title="Error" />
+        <View style={styles.center}>
+          <Text style={{ color: COLORS.WHITE }}>Convenio no encontrado.</Text>
+        </View>
+      </LinearGradient>
+    );
+  }
 
   return (
     <LinearGradient
       colors={[COLORS.GRADIENT_START, COLORS.GRADIENT_END]}
       style={styles.container}
     >
-      <HeaderConvenio router={router} title={convenio.name} />
+      <HeaderConvenio title={convenio.nombre} />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={contentWidthStyle}>
-          
-          <NttDataLogo />
-          
-          {/* Sección 1: ¿Quienes somos? */}
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>¿Quienes somos?</Text>
-            <Text style={styles.sectionBody}>{convenio.description}</Text>
+
+          <View style={styles.logoContainer}>
+            {convenio.logo_url && convenio.logo_url.startsWith('http') ? (
+              <Image source={{ uri: convenio.logo_url }} style={styles.logoImage} resizeMode="contain" />
+            ) : (
+              <Text style={styles.logoText}>{convenio.nombre}</Text>
+            )}
           </View>
 
-          {/* Sección 2: ¿Que requerimos? */}
-          <View style={[styles.sectionCard, isDesktop && styles.desktopSectionCard]}>
-            <Text style={styles.sectionTitle}>¿Que requerimos?</Text>
+          {/* Sección 1: ¿Quienes somos? */}
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>¿Quiénes somos?</Text>
             <Text style={styles.sectionBody}>
-                En {convenio.name}, buscamos talento para impulsar la innovación y la transformación digital. Únete a nuestro equipo global en roles clave:
+              {convenio.descripcion || 'Sin descripción disponible.'}
             </Text>
-            <View style={styles.requirementsList}>
-                {convenio.requirements.map((req, index) => (
-                    <Text key={index} style={styles.requirementItem}>
-                        • {req}
-                    </Text>
-                ))}
-            </View>
+          </View>
+
+          {/* Sección 2: ¿Que requerimos? (Optional / Generic) */}
+          <View style={[styles.sectionCard, isDesktop && styles.desktopSectionCard]}>
+            <Text style={styles.sectionTitle}>Oportunidades</Text>
+            <Text style={styles.sectionBody}>
+              En {convenio.nombre}, estamos constantemente en búsqueda de talento. Contáctanos para conocer las vacantes disponibles.
+            </Text>
             <TouchableOpacity style={styles.moreInfoButton}>
-                <Ionicons name="information-circle-outline" size={16} color={COLORS.ACCENT_BLUE} />
-                <Text style={styles.moreInfoText}>solicitar más información</Text>
+              <Ionicons name="information-circle-outline" size={16} color={COLORS.ACCENT_BLUE} />
+              <Text style={styles.moreInfoText}>Solicitar más información</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Icono de Facebook flotante (simulación) */}
+          {/* Icono de Facebook flotante */}
           <View style={styles.facebookFloat}>
             <Ionicons name="logo-facebook" size={30} color={COLORS.WHITE} />
           </View>
@@ -119,9 +142,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   scrollContent: {
     flexGrow: 1,
-    alignItems: 'center', 
+    alignItems: 'center',
     paddingBottom: 40,
   },
   mobileContentArea: {
@@ -130,7 +163,7 @@ const styles = StyleSheet.create({
   },
   desktopContentArea: {
     width: '100%',
-    maxWidth: 700, 
+    maxWidth: 700,
     paddingHorizontal: 20,
   },
   // Header
@@ -161,7 +194,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
-    height: 150, // Altura fija para el banner del logo
+    height: 150,
+  },
+  logoImage: {
+    width: '100%',
+    height: '100%',
   },
   logoText: {
     fontSize: 28,
@@ -178,7 +215,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   desktopSectionCard: {
-    // Para Desktop, hacer las secciones más anchas si es necesario, o mantener el flujo vertical
   },
   sectionTitle: {
     fontSize: 22,
@@ -192,16 +228,6 @@ const styles = StyleSheet.create({
     color: COLORS.WHITE,
     lineHeight: 22,
     marginBottom: 15,
-  },
-  requirementsList: {
-    marginTop: 5,
-    paddingLeft: 10,
-  },
-  requirementItem: {
-    fontSize: 14,
-    color: COLORS.WHITE,
-    marginBottom: 8,
-    lineHeight: 20,
   },
   moreInfoButton: {
     flexDirection: 'row',
@@ -234,4 +260,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ConvenioDetailScreen;    
+export default ConvenioDetailScreen;

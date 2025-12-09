@@ -1,6 +1,6 @@
 // app/_layout.tsx
-import React from 'react';
 import { Stack } from 'expo-router';
+import React from 'react';
 import { UserProvider } from '../context/UserContext';
 
 export default function RootLayout() {
@@ -8,6 +8,7 @@ export default function RootLayout() {
     <UserProvider>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="admin" />
       </Stack>
     </UserProvider>
   );

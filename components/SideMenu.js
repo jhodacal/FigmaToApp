@@ -1,57 +1,90 @@
 // components/SideMenu.js
-import React, { useState, useEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
   Animated,
   Dimensions,
-  Platform,StatusBar
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_URL } from '../src/config/api';
 
 const { width } = Dimensions.get('window');
 
 // --- Paleta de Colores (Consistente con Dashboard) ---
 const COLORS = {
-  MENU_BG_DARK: '#191970', // Un azul oscuro para el menú
+  MENU_BG_DARK: '#191970',
   WHITE: '#FFFFFF',
-  TEXT_MAIN_BLUE: '#4990E2', 
+  TEXT_MAIN_BLUE: '#4990E2',
   ACCENT_GREEN: '#4ade80',
 };
 
-// --- Items del Menú ---
-const menuItems = [
-  { name: 'Mis Datos', icon: 'person-circle-outline', route: '/profile' },
-  { name: 'Inicio', icon: 'home-outline', route: '/dashboard' },
-  { name: 'Mis Cursos', icon: 'book-outline', route: '/my-courses' },
-  { name: 'Ayuda', icon: 'help-circle-outline', route: '/help' },
-  { name: 'Terminos y Condiciones', icon: 'document-text-outline', route: '/terms' },
+// --- Items del Menú (se muestra según rol)
+// Usuario normal ve estas 5 opciones
+const userMenu = [
+  { name: 'Mis Datos', icon: 'person-circle-outline', route: '/(tabs)/profile' },
+  { name: 'Inicio', icon: 'home-outline', route: '/(tabs)/dashboard' },
+  { name: 'Mis Cursos', icon: 'book-outline', route: '/(tabs)/MyCourses' },
+  { name: 'Convenios', icon: 'briefcase-outline', route: '/(tabs)/convenios' },
+  { name: 'Ayuda', icon: 'help-circle-outline', route: '/(tabs)/help' },
+  { name: 'Términos y Condiciones', icon: 'document-text-outline', route: '/(tabs)/terms' },
+];
+
+// Admin solo ve Panel de Control
+const adminMenu = [
+  { name: 'Panel de control', icon: 'speedometer-outline', route: '/admin' },
 ];
 
 const SideMenu = ({ isOpen, onClose }) => {
   const router = useRouter();
-  const [userName, setUserName] = useState('Admin');
+  const [userName, setUserName] = useState('Usuario');
+  const [role, setRole] = useState('user');
 
-  // Animación del menú (solo para el renderizado nativo/web)
   const animatedValue = React.useRef(new Animated.Value(isOpen ? 0 : -width)).current;
 
   useEffect(() => {
     const getUser = async () => {
-      const userData = await AsyncStorage.getItem('user');
-      if (userData) {
-        const user = JSON.parse(userData);
-        setUserName(user.name);
+      try {
+        const userData = await AsyncStorage.getItem('user');
+        if (userData) {
+          const user = JSON.parse(userData);
+          setUserName(user.nombres || user.username || 'Usuario');
+          // Verificar si es admin
+          const isAdmin = user.role === 'admin' || user.id == 1;
+          setRole(isAdmin ? 'admin' : 'user');
+        }
+
+        const token = await AsyncStorage.getItem('token');
+        if (token) {
+          try {
+            const resp = await fetch(`${API_URL}/auth/profile`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (resp.ok) {
+              const body = await resp.json();
+              const user = body.user || {};
+              if (user.nombres) setUserName(user.nombres);
+              const isAdmin = user.role === 'admin' || user.id == 1;
+              setRole(isAdmin ? 'admin' : 'user');
+            }
+          } catch (err) {
+            console.warn('Profile fetch failed', err);
+          }
+        }
+      } catch (err) {
+        console.warn('Error leyendo user desde AsyncStorage', err);
       }
     };
-    if (isOpen) {
-      getUser();
-    }
+
+    if (isOpen) getUser();
   }, [isOpen]);
 
   React.useEffect(() => {
@@ -64,34 +97,53 @@ const SideMenu = ({ isOpen, onClose }) => {
 
   const handleNavigate = (route) => {
     onClose();
-    router.push(route);
+    if (route === '/(tabs)/convenios') {
+      router.push(route);
+      return;
+    }
+
+    if (route.startsWith('/(tabs)') || route === '/admin') {
+      router.replace(route);
+    } else {
+      router.push(route);
+    }
   };
+
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.multiRemove(['token', 'user']);
+      onClose();
+      router.replace('/');
+    } catch (err) {
+      console.error('Error cerrando sesión', err);
+    }
+  };
+
+  // Admin solo ve Panel de Control, usuarios normales ven las 5 secciones
+  const menuItems = role === 'admin' ? adminMenu : userMenu;
 
   if (!isOpen && animatedValue.__getValue() === -width) return null;
 
   return (
     <>
-      {/* Overlay Oscuro */}
       {isOpen && (
         <TouchableOpacity style={styles.overlay} onPress={onClose} activeOpacity={1} />
       )}
 
-      {/* Menú Principal */}
       <Animated.View
         style={[
           styles.menuContainer,
           { transform: [{ translateX: animatedValue }] },
-          Platform.OS === 'web' && isOpen && styles.webMenuOpen, // Estilo CSS para web si es necesario
+          Platform.OS === 'web' && isOpen && styles.webMenuOpen,
         ]}
       >
         <LinearGradient
-            colors={['#1e3a8a', '#4c1d95']}
-            style={styles.gradientBackground}
+          colors={['#1e3a8a', '#4c1d95']}
+          style={styles.gradientBackground}
         >
-          {/* Header del Menú */}
           <View style={styles.header}>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <Ionicons name="close" size={30} color={COLORS.WHITE} />
+              <Ionicons name="close" size={30} color={COLORS.WHITE} />
             </TouchableOpacity>
             <Text style={styles.greetingText}>
               Hola, <Text style={styles.userNameText}>{userName}</Text>
@@ -102,7 +154,7 @@ const SideMenu = ({ isOpen, onClose }) => {
             {menuItems.map((item, index) => (
               <TouchableOpacity
                 key={index}
-                style={[styles.menuItem, index === 1 && styles.activeItem]} // Inicio activo por defecto
+                style={[styles.menuItem, index === 0 && styles.activeItem]}
                 onPress={() => handleNavigate(item.route)}
               >
                 <Ionicons name={item.icon} size={24} color={COLORS.WHITE} style={styles.itemIcon} />
@@ -111,9 +163,8 @@ const SideMenu = ({ isOpen, onClose }) => {
             ))}
           </ScrollView>
 
-          {/* Pie de Página (Cerrar Sesión) */}
           <View style={styles.footer}>
-            <TouchableOpacity style={styles.logoutButton} onPress={() => handleNavigate('/logout')}>
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
               <Ionicons name="log-out-outline" size={24} color={COLORS.WHITE} style={styles.itemIcon} />
               <Text style={styles.logoutText}>Cerrar sesión</Text>
             </TouchableOpacity>
@@ -138,7 +189,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
-    width: width * 0.75, // Ocupa el 75% del ancho de la pantalla
+    width: width * 0.75,
     height: '100%',
     zIndex: 100,
     shadowColor: '#000',
@@ -151,7 +202,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
-  // Solo para web, para asegurar que el menú no sea empujado por el layout
   webMenuOpen: {
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
   },

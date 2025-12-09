@@ -1,20 +1,25 @@
-import React, { useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
+  ActivityIndicator,
+  Dimensions,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Platform,
-  Image,
-  Dimensions,
+  View
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import useSafeBack from '../../../components/useSafeBack';
+import { useDeviceType } from '../../../hooks/useDeviceType';
+import { API_URL } from '../../config/api';
 
-import courses from './mockData';
-import { useDeviceType } from '../../../hooks/useDeviceType'; // Reutilizando hook
+// Default banner if none provided
+const DEFAULT_BANNER = require('../../../assets/images/default_course_banner.png');
 
 const { width } = Dimensions.get('window');
 
@@ -30,23 +35,27 @@ const COLORS = {
   TEXT_GRAY: '#CCCCCC',
   BUTTON_GRADIENT_START: '#FF007F', // Rosa Vibrante
   BUTTON_GRADIENT_END: '#8A2BE2',   // Púrpura Brillante
+  ACCENT_GREEN: '#4ade80',
 };
 
-const HeaderDetail = ({ router, title, showIcon = true }) => (
-  <View style={styles.headerDetail}>
-    <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
-      <Ionicons name="arrow-back-outline" size={28} color={COLORS.WHITE} />
-    </TouchableOpacity>
-    <Text style={styles.headerTitle}>{title}</Text>
-    {showIcon ? (
-      <TouchableOpacity style={styles.headerButton}>
-        <Ionicons name="share-social-outline" size={24} color={COLORS.WHITE} />
+const HeaderDetail = ({ router, title, showIcon = true }) => {
+  const safeBack = useSafeBack();
+  return (
+    <View style={styles.headerDetail}>
+      <TouchableOpacity onPress={safeBack} style={styles.headerButton}>
+        <Ionicons name="arrow-back-outline" size={28} color={COLORS.WHITE} />
       </TouchableOpacity>
-    ) : (
-      <View style={{ width: 44 }} /> // Placeholder para centrar
-    )}
-  </View>
-);
+      <Text style={styles.headerTitle}>{title}</Text>
+      {showIcon ? (
+        <TouchableOpacity style={styles.headerButton}>
+          <Ionicons name="share-social-outline" size={24} color={COLORS.WHITE} />
+        </TouchableOpacity>
+      ) : (
+        <View style={{ width: 44 }} /> // Placeholder para centrar
+      )}
+    </View>
+  );
+};
 
 const BulletPoint = ({ text }) => (
   <View style={styles.bulletItem}>
@@ -55,15 +64,21 @@ const BulletPoint = ({ text }) => (
   </View>
 );
 
-const InscribirseButton = ({ router, course }) => (
-  <TouchableOpacity style={styles.inscribirseButton} onPress={() => router.push({ pathname: '/InscripcionScreen', params: { id: course.id } })}>
+const InscribirseButton = ({ onPress, isEnrolled, loading }) => (
+  <TouchableOpacity style={styles.inscribirseButton} onPress={onPress} disabled={loading}>
     <LinearGradient
-      colors={[COLORS.BUTTON_GRADIENT_START, COLORS.BUTTON_GRADIENT_END]}
+      colors={isEnrolled ? [COLORS.ACCENT_GREEN, '#38b000'] : [COLORS.BUTTON_GRADIENT_START, COLORS.BUTTON_GRADIENT_END]}
       style={styles.inscribirseGradient}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 0 }}
     >
-      <Text style={styles.inscribirseText}>INSCRIBIRSE</Text>
+      {loading ? (
+        <ActivityIndicator color={COLORS.WHITE} />
+      ) : (
+        <Text style={styles.inscribirseText}>
+          {isEnrolled ? 'VER LECCIONES' : 'INSCRIBIRSE'}
+        </Text>
+      )}
     </LinearGradient>
   </TouchableOpacity>
 );
@@ -73,22 +88,98 @@ const InscribirseButton = ({ router, course }) => (
 
 const CourseDetailScreen = () => {
   const router = useRouter();
-  // Obtener el ID del curso desde los parámetros
   const params = useLocalSearchParams();
+  const safeBack = useSafeBack();
   const { id } = params;
 
-  // Encontrar el curso
-  const course = courses.find(c => c.id === id);
+  const [course, setCourse] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isEnrolled, setIsEnrolled] = useState(false);
+  const [enrolling, setEnrolling] = useState(false);
 
   const { isDesktop } = useDeviceType();
   const contentWidthStyle = isDesktop ? styles.desktopContentArea : styles.mobileContentArea;
 
+  useEffect(() => {
+    loadCourseData();
+  }, [id]);
+
+  const loadCourseData = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+
+      // Cargar datos del curso
+      const courseResponse = await fetch(`${API_URL}/cursos/${id}`);
+      if (courseResponse.ok) {
+        const courseData = await courseResponse.json();
+        const curso = courseData.curso;
+        setCourse({
+          id: curso.id.toString(),
+          title: curso.titulo,
+          subtitle: curso.subtitulo || '',
+          description: curso.descripcion || '',
+          logoIcon: curso.logo_icon || '📚',
+          bannerUrl: curso.banner_url || null, // Add bannerUrl
+          periods: (curso.periods || []).map(p => ({
+            name: p.nombre,
+            duration: p.duracion
+          })),
+          learningObjectives: curso.learningObjectives || []
+        });
+      }
+
+      // Verificar si está inscrito
+      if (token) {
+        const enrollmentResponse = await fetch(`${API_URL}/cursos/${id}/inscrito`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (enrollmentResponse.ok) {
+          const enrollmentData = await enrollmentResponse.json();
+          setIsEnrolled(enrollmentData.enrolled);
+        }
+      }
+    } catch (error) {
+      console.error('Error cargando curso:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEnrollment = async () => {
+    const token = await AsyncStorage.getItem('token');
+
+    if (!token) {
+      router.push('/(tabs)/index');
+      return;
+    }
+
+    if (isEnrolled) {
+      router.push({ pathname: '/CourseLessons', params: { id } });
+    } else {
+      router.push({
+        pathname: '/(tabs)/InscripcionScreen',
+        params: {
+          courseId: id,
+          courseName: course.titulo
+        }
+      });
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.errorContainer, { backgroundColor: COLORS.BACKGROUND_DARK }]}>
+        <ActivityIndicator size="large" color={COLORS.WHITE} />
+        <Text style={[styles.errorText, { marginTop: 10 }]}>Cargando curso...</Text>
+      </View>
+    );
+  }
 
   if (!course) {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>Curso no encontrado.</Text>
-        <TouchableOpacity style={{ marginTop: 20 }} onPress={() => router.back()}>
+        <TouchableOpacity style={{ marginTop: 20 }} onPress={safeBack}>
           <Text style={styles.headerTitle}>← Volver</Text>
         </TouchableOpacity>
       </View>
@@ -106,12 +197,24 @@ const CourseDetailScreen = () => {
         <View style={contentWidthStyle}>
           {/* Banner Superior */}
           <View style={styles.bannerContainer}>
-            {/* Usamos un View Placeholder ya que no tenemos la URL real de la imagen */}
-            <View style={styles.bannerPlaceholder}>
+            {course.bannerUrl ? (
+              <Image
+                source={{ uri: course.bannerUrl }}
+                style={styles.bannerImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <Image
+                source={DEFAULT_BANNER}
+                style={styles.bannerImage}
+                resizeMode="cover"
+              />
+            )}
+            <View style={styles.bannerOverlay}>
               <Text style={styles.bannerText}>CURSO {course.title.toUpperCase()}</Text>
             </View>
           </View>
-          
+
           {/* Contenido Principal del Curso */}
           <View style={styles.detailCard}>
             <Text style={styles.title}>{course.title}</Text>
@@ -122,25 +225,33 @@ const CourseDetailScreen = () => {
             <Text style={styles.description}>{course.description}</Text>
 
             {/* Periodos */}
-            <Text style={styles.sectionHeader}>Periodos y Duración</Text>
-            {course.periods.map((period, index) => (
-              <BulletPoint key={index} text={`${period.name}: ${period.duration}`} />
-            ))}
+            {course.periods && course.periods.length > 0 && (
+              <>
+                <Text style={styles.sectionHeader}>Periodos y Duración</Text>
+                {course.periods.map((period, index) => (
+                  <BulletPoint key={index} text={`${period.name}: ${period.duration}`} />
+                ))}
+              </>
+            )}
 
             {/* Lo que Aprenderás */}
-            <Text style={styles.sectionHeader}>Lo que aprenderás</Text>
-            <View style={styles.learningObjectivesList}>
-              {course.learningObjectives.map((objective, index) => (
-                <BulletPoint key={index} text={objective} />
-              ))}
-            </View>
+            {course.learningObjectives && course.learningObjectives.length > 0 && (
+              <>
+                <Text style={styles.sectionHeader}>Lo que aprenderás</Text>
+                <View style={styles.learningObjectivesList}>
+                  {course.learningObjectives.map((objective, index) => (
+                    <BulletPoint key={index} text={objective} />
+                  ))}
+                </View>
+              </>
+            )}
           </View>
         </View>
       </ScrollView>
-      
+
       {/* Botón Fijo en la parte inferior */}
       <View style={styles.bottomFixedButton}>
-        <InscribirseButton router={router} course={course} />
+        <InscribirseButton onPress={handleEnrollment} isEnrolled={isEnrolled} loading={enrolling} />
       </View>
     </LinearGradient>
   );
@@ -201,23 +312,49 @@ const styles = StyleSheet.create({
     marginVertical: 15,
     borderRadius: 15,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 8,
-    backgroundColor: '#374151', // Color de fondo si la imagen no carga
+    backgroundColor: '#374151',
+    height: width * 0.5 > 300 ? 300 : width * 0.5,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 5,
+      },
+      android: {
+        elevation: 8,
+      },
+      web: {
+        boxShadow: '0px 4px 5px rgba(0,0,0,0.3)',
+      },
+    }),
   },
-  bannerPlaceholder: {
+  bannerImage: {
     width: '100%',
-    height: width * 0.4 > 250 ? 250 : width * 0.4, // Altura responsiva, máx 250
-    justifyContent: 'center',
-    alignItems: 'center',
+    height: '100%',
+  },
+  bannerOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: 15,
   },
   bannerText: {
     fontSize: 22,
     fontWeight: 'bold',
     color: COLORS.TEXT_LIGHT,
+    ...Platform.select({
+      web: {
+        textShadow: '-1px 1px 10px rgba(0,0,0,0.75)',
+      },
+      default: {
+        textShadowColor: 'rgba(0,0,0,0.75)',
+        textShadowOffset: { width: -1, height: 1 },
+        textShadowRadius: 10,
+      },
+    }),
   },
   // Tarjeta de Contenido
   detailCard: {

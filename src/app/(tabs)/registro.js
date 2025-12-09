@@ -2,20 +2,22 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    Dimensions,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Dimensions,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import Svg, { Line, Path, Text as SvgText } from 'react-native-svg';
+import useSafeBack from '../../../components/useSafeBack';
+import { API_URL } from '../../config/api';
 
 const { width, height } = Dimensions.get('window');
 
@@ -30,9 +32,9 @@ const AnimatedContainer = ({ children, fadeAnim, slideAnim, style }) => {
   }
 
   return (
-    <Animated.View 
+    <Animated.View
       style={[
-        style, 
+        style,
         {
           opacity: fadeAnim,
           transform: [{ translateY: slideAnim }]
@@ -45,30 +47,18 @@ const AnimatedContainer = ({ children, fadeAnim, slideAnim, style }) => {
 };
 
 // --- Componentes Reutilizables (Movidos fuera de RegisterScreen) ---
-
+const DEFAULT_LOGO = require('../../../assets/images/Impulsatech (1).png');
 const Logo = ({ deviceType }) => (
-  <Svg width={deviceType === 'mobile' ? 260 : 320} height={80} viewBox="0 0 400 80">
-    <SvgText x="10" y="55" fontSize="45" fontWeight="900" fill="white" fontStyle="italic">
-      Impul
-    </SvgText>
-    <SvgText x="160" y="55" fontSize="45" fontWeight="900" fill="#00d4ff" fontStyle="italic">
-      satech
-    </SvgText>
-    <Line x1="0" y1="50" x2="80" y2="50" stroke="white" strokeWidth="2" opacity="0.5" />
-  </Svg>
+  <View style={{ height: 40, width: 150, justifyContent: 'center' }}>
+    <Image
+      source={DEFAULT_LOGO}
+      style={{ width: '500', height: '600', alignSelf: 'center' }}
+      resizeMode="contain"
+    />
+  </View>
 );
 
-const WaveDivider = () => (
-  <Svg width={width} height={40} viewBox={`0 0 ${width} 40`}>
-    <Path
-      d={`M0,20 Q${width/4},10 ${width/2},20 T${width},20`}
-      stroke="white"
-      strokeWidth="2"
-      fill="none"
-      opacity="0.3"
-    />
-  </Svg>
-);
+
 
 const PeruFlag = ({ size = 'small' }) => {
   const flagWidth = size === 'small' ? 120 : 180;
@@ -79,7 +69,7 @@ const PeruFlag = ({ size = 'small' }) => {
     <View style={[styles.flag, { width: flagWidth, height: flagHeight }]}>
       <View style={[styles.flagSection, { width: sectionWidth, backgroundColor: '#D91023' }]} />
       <View style={[styles.flagSection, { width: sectionWidth, backgroundColor: '#FFFFFF' }]}>
-        <Text style={styles.flagShield}>🛡️</Text>
+
       </View>
       <View style={[styles.flagSection, { width: sectionWidth, backgroundColor: '#D91023' }]} />
     </View>
@@ -132,14 +122,17 @@ const FormInput = ({
   </View>
 );
 
-const BackToLoginButton = ({ router }) => (
-  <TouchableOpacity 
-    style={styles.backButton} 
-    onPress={() => router.back()}
-  >
-    <Text style={styles.backButtonText}>← Volver al Login</Text>
-  </TouchableOpacity>
-);
+const BackToLoginButton = ({ router }) => {
+  const safeBack = useSafeBack();
+  return (
+    <TouchableOpacity
+      style={styles.backButton}
+      onPress={safeBack}
+    >
+      <Text style={styles.backButtonText}>← Volver al Login</Text>
+    </TouchableOpacity>
+  );
+};
 
 // --- Componente Principal de la Pantalla ---
 
@@ -163,7 +156,7 @@ const RegisterScreen = () => {
   useEffect(() => {
     const isMobile = width < 768;
     const isTablet = width >= 768 && width < 1024;
-    
+
     if (isMobile) setDeviceType('mobile');
     else if (isTablet) setDeviceType('tablet');
     else setDeviceType('desktop');
@@ -212,7 +205,7 @@ const RegisterScreen = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('http://10.168.178.112:3000/api/auth/register', {
+      const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -272,7 +265,7 @@ const RegisterScreen = () => {
               <View style={styles.header}>
                 <Logo deviceType={deviceType} />
                 <View style={{ height: 10 }} />
-                <WaveDivider />
+
               </View>
 
               {/* Formulario */}
@@ -384,15 +377,15 @@ const RegisterScreen = () => {
               <View style={styles.tabletLeft}>
                 <Logo deviceType={deviceType} />
                 <View style={{ height: 40 }} />
-                
+
                 <Text style={styles.tabletMainText}>
                   ¡Únete a ImpulsaTech!
                 </Text>
-                
+
                 <Text style={styles.tabletSubText}>
                   Crea tu cuenta y comienza tu camino hacia el éxito en tecnología
                 </Text>
-                
+
                 <View style={{ height: 40 }} />
                 <PeruFlag size="large" />
               </View>
@@ -507,15 +500,15 @@ const RegisterScreen = () => {
           <View style={styles.desktopLeftContent}>
             <Logo deviceType={deviceType} />
             <View style={{ height: 40 }} />
-            
+
             <Text style={styles.desktopMainText}>
               "Tu futuro en tecnología empieza hoy. Sin barreras."
             </Text>
-            
+
             <Text style={styles.desktopSubText}>
               "Accede a los mejores cursos de IA, Robótica y más. Paga solo cuando consigas el trabajo de tus sueños."
             </Text>
-            
+
             <View style={{ height: 40 }} />
             <PeruFlag size="large" />
           </View>
@@ -671,6 +664,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(30, 58, 138, 0.4)',
     borderRadius: 24,
     padding: 24,
+    marginTop: 30,
+    marginBottom: 30,
     borderWidth: 3,
     borderColor: 'rgba(255, 255, 255, 0.6)',
     width: '100%',
@@ -803,33 +798,44 @@ const styles = StyleSheet.create({
   },
   desktopLeft: {
     flex: 1,
+    backgroundColor: 'rgba(30, 58, 138, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 60,
   },
   desktopLeftContent: {
     maxWidth: 600,
+    padding: 40,
+    alignItems: 'center',
   },
   desktopRight: {
     flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
   },
   desktopScrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 40,
   },
   desktopMainText: {
-    fontSize: 44,
+    fontSize: 48,
     fontWeight: 'bold',
     color: '#4ade80',
-    lineHeight: 52,
+    textAlign: 'center',
     marginBottom: 24,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   desktopSubText: {
-    fontSize: 20,
+    fontSize: 24,
     color: '#fff',
-    lineHeight: 30,
+    textAlign: 'center',
+    lineHeight: 36,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
 });
 

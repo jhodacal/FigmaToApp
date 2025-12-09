@@ -1,33 +1,29 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Logo, PeruFlag, WaveDivider } from '../../../components/CommonComponents';
 import { useDeviceType } from '../../../hooks/useDeviceType';
+import { API_URL } from '../../config/api';
 
 // Componente para manejar la animación de entrada del formulario
-const AnimatedFormContainer = ({ children, fadeAnim, slideAnim }) => {
-  if (Platform.OS === 'web') {
-    // Usar animación CSS para Web
-    return <View style={styles.animatedFormWeb}>{children}</View>;
-  }
-  // Usar Animated API para Nativo
+const AnimatedFormContainer = ({ children }) => {
   return (
-    <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+    <Animated.View entering={FadeInUp.delay(300).duration(1000).springify()} style={{ width: '100%', alignItems: 'center' }}>
       {children}
     </Animated.View>
   );
@@ -113,30 +109,8 @@ const LoginScreen = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  
+
   const { isMobile, isTablet, isDesktop } = useDeviceType();
-
-  // Animaciones para la entrada del formulario (solo nativo)
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(50)).current;
-
-  useEffect(() => {
-    if (Platform.OS !== 'web') {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          tension: 50,
-          friction: 7,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, []);
 
   const handleLogin = async () => {
     if (!username || !password) {
@@ -148,7 +122,7 @@ const LoginScreen = () => {
 
     try {
       // Reemplaza con tu URL de API
-      const response = await fetch('http://10.168.178.112:3000/api/auth/login', {
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -156,13 +130,17 @@ const LoginScreen = () => {
         body: JSON.stringify({
           username: username,
           password: password,
-        } ),
+        }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
+        await AsyncStorage.setItem('token', data.token);
         await AsyncStorage.setItem('user', JSON.stringify(data.user));
+
+        // Redirigir según rol
+        // Redirigir siempre al dashboard
         router.replace('/dashboard');
       } else {
         Alert.alert('Error', data.message || 'Credenciales inválidas');
@@ -188,12 +166,12 @@ const LoginScreen = () => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={[styles.container]}
       >
-        <StatusBar 
-        translucent={false} 
-        hidden={false}
-        backgroundColor="#071336"
-        barStyle="light-content" // 'light-content' para íconos blancos, 'dark-content' para íconos negros
-      />
+        <StatusBar
+          translucent={false}
+          hidden={false}
+          backgroundColor="#071336"
+          barStyle="light-content" // 'light-content' para íconos blancos, 'dark-content' para íconos negros
+        />
         <LinearGradient
           colors={['#4c1d95', '#1e3a8a', '#1e40af']}
           style={styles.gradient}
@@ -201,23 +179,23 @@ const LoginScreen = () => {
           <ScrollView contentContainerStyle={styles.scrollContent}>
             {/* Header */}
             <View style={styles.header}>
-               <WaveDivider 
-               figureType = 'waves'
-              position="bottom"
-              intensity="low"/>
+              <WaveDivider
+                figureType='waves'
+                position="bottom"
+                intensity="low" />
               <Logo />
-             
+
             </View>
 
             {/* Contenido principal */}
             <View style={styles.mainContent}>
               <Text style={styles.welcomeText}>Bienvenido</Text>
-              <AnimatedFormContainer fadeAnim={fadeAnim} slideAnim={slideAnim}>
+              <AnimatedFormContainer>
                 <LoginForm {...loginFormProps} />
               </AnimatedFormContainer>
             </View>
 
-          
+
             {/* Footer */}
             <View style={styles.footer}>
               <PeruFlag size="small" />
@@ -234,11 +212,11 @@ const LoginScreen = () => {
         colors={['#4c1d95', '#1e3a8a', '#1e40af']}
         style={styles.gradient}
       >
-           <WaveDivider 
-              figureType = 'waves'
-              position="bottom"
-              intensity="medium"/>
-              <Logo />
+        <WaveDivider
+          figureType='waves'
+          position="bottom"
+          intensity="medium" />
+        <Logo />
         <View style={styles.tabletContainer}>
           {/* Lado izquierdo - Bandera */}
           <View style={styles.tabletLeft}>
@@ -247,14 +225,14 @@ const LoginScreen = () => {
 
           {/* Lado derecho */}
           <View style={styles.tabletRight}>
-          
-            
+
+
             <View style={{ height: 20 }} />
-           
-            
+
+
             <Text style={[styles.welcomeText, { fontSize: 48 }]}>Bienvenido</Text>
 
-            <AnimatedFormContainer fadeAnim={fadeAnim} slideAnim={slideAnim}>
+            <AnimatedFormContainer>
               <LoginForm {...loginFormProps} style={{ width: '100%', maxWidth: 400 }} />
             </AnimatedFormContainer>
           </View>
@@ -273,18 +251,18 @@ const LoginScreen = () => {
         {/* Panel izquierdo */}
         <View style={styles.desktopLeft}>
           <View style={styles.desktopLeftContent}>
-            
+
             <Logo />
             <View style={{ height: 30 }} />
-            
+
             <Text style={styles.desktopMainText}>
               "Tu futuro en tecnología empieza hoy. Sin barreras."
             </Text>
-            
+
             <Text style={styles.desktopSubText}>
               "Accede a los mejores cursos de IA, Robótica y más. Paga solo cuando consigas el trabajo de tus sueños."
             </Text>
-            
+
             <View style={{ height: 30 }} />
             <PeruFlag size="large" />
           </View>
@@ -292,7 +270,7 @@ const LoginScreen = () => {
 
         {/* Panel derecho */}
         <View style={styles.desktopRight}>
-          <AnimatedFormContainer fadeAnim={fadeAnim} slideAnim={slideAnim}>
+          <AnimatedFormContainer>
             <LoginForm {...loginFormProps} style={{ width: '100%', maxWidth: 450 }} />
           </AnimatedFormContainer>
         </View>
@@ -469,20 +447,7 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     marginBottom: 20,
   },
-  // Animación para Web (CSS Keyframes)
-  animatedFormWeb: Platform.OS === 'web' ? {
-    animation: '$fadeInUp 0.8s ease-out forwards',
-  } : {},
-  '@keyframes fadeInUp': {
-    '0%': {
-      opacity: 0,
-      transform: 'translateY(50px)',
-    },
-    '100%': {
-      opacity: 1,
-      transform: 'translateY(0)',
-    },
-  },
+
 });
 
 export default LoginScreen;
